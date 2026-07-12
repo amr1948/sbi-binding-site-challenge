@@ -1,0 +1,24 @@
+# Provided challenge data (large; not ours to version)
+# Covers the protein .pdb folders AND the provided label/template CSVs
+/data/
+
+# Per-approach caches, generated dumps, downloaded tools (regenerable)
+01_gbm_handcrafted/cache/
+02_offshelf_tools/_generated/
+03_egnn/model/*.log
+
+# Large regenerable model weights / backups / archives
+*.pkl
+*.log
+code.zip
+
+# Provided task description (copyright)
+SBI_Preliminaries_And_Challenge_Server.pdf
+
+# Python / OS cruft
+__pycache__/
+*.pyc
+.DS_Store
+**/.DS_Store
+.venv/
+.ipynb_checkpoints/

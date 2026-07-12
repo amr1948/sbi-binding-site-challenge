@@ -1,0 +1,183 @@
+\documentclass[12pt,a4paper,austrian]{article}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage[austrian, english]{babel}
+\selectlanguage{english}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage{epstopdf}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\graphicspath{{./fig/}}
+
+%% Satzspiegel
+\setlength{\hoffset}{-1in} \setlength{\textwidth}{18cm}
+\setlength{\oddsidemargin}{1.5cm}
+\setlength{\evensidemargin}{1.5cm}
+\setlength{\marginparsep}{0.7em}
+\setlength{\marginparwidth}{0.5cm}
+
+\setlength{\voffset}{-1.9in}
+\setlength{\headheight}{12pt}
+\setlength{\topmargin}{2.6cm}
+   \addtolength{\topmargin}{-\headheight}
+\setlength{\headsep}{3.5cm}
+   \addtolength{\headsep}{-\topmargin}
+   \addtolength{\headsep}{-\headheight}
+\setlength{\textheight}{27cm}
+
+\setlength{\floatsep}{12 pt plus 0 pt minus 8 pt}
+\setlength{\textfloatsep}{12 pt plus 0pt minus 8 pt}
+\setlength{\intextsep}{12 pt plus 0pt minus 8 pt}
+
+\tolerance2000
+\emergencystretch20pt
+
+\newcommand{\eg}[1]{\selectlanguage{english}\textit{#1}\selectlanguage{english}}
+\newcommand{\filename}[1]{\begin{small}\texttt{#1}\end{small}}
+
+\newcommand\IFT{\unitlength1mm\begin{picture}(10,2) \put (1,1)
+{\circle{1.7}} \put(2,1){\line(1,0){5}} \put(8,1)
+{\circle*{1.7}}\end{picture}}
+\newcommand\FT{\unitlength1mm\begin{picture}(10,2) \put (1,1)
+{\circle*{1.7}} \put(2,1){\line(1,0){5}} \put(8,1)
+{\circle{1.7}}\end{picture}}
+
+\newcommand{\choicebox}{\fbox{\rule{0pt}{0.5ex}\rule{0.5ex}{0pt}}}
+
+\newenvironment{wahrfalsch}%
+  {\bigskip\par\noindent\makebox[1cm][c]{true}\hspace{3mm}\makebox[1cm][c]{false}
+   \begin{list}%
+   {\makebox[1cm][c]{\choicebox}\hspace{3mm}\makebox[1cm][c]{\choicebox}}%
+   {\setlength{\labelwidth}{2.31 cm}\setlength{\labelsep}{3mm}
+    \setlength{\leftmargin}{2.61 cm}\setlength{\listparindent}{0pt}
+    \setlength{\itemindent}{0pt}}%
+  }{\end{list}}
+
+\newcounter{theaufgabe}\setcounter{theaufgabe}{1}
+\newenvironment{aufgabe}[1]%
+  {\bigskip\par\noindent\begin{nopagebreak}
+   \textsf{\textbf{\arabic{theaufgabe}.\thinspace Exercise}}\quad
+      \textsf{\textit{#1}}\\*[1ex]%
+\stepcounter{theaufgabe}\hspace{2ex}\end{nopagebreak}}
+  {\par\pagebreak[2]}
+
+\renewcommand{\labelenumi}{\alph{enumi})}
+\renewcommand{\labelenumii}{\arabic{enumii})}
+\newcommand{\abgabe}{\marginpar{$\Box$}}
+\reversemarginpar
+\setlength{\parindent}{0.0cm}
+\setcounter{secnumdepth}{0}
+
+%% One-page fit: spacing only, no content changes ---------------------------
+\usepackage{enumitem}
+\setlist[itemize]{topsep=1pt,partopsep=0pt,itemsep=1pt,parsep=0pt,leftmargin=1.4em}
+\setlist[enumerate]{topsep=1pt,partopsep=0pt,itemsep=1pt,parsep=0pt,leftmargin=1.6em}
+\linespread{0.94}
+\renewcommand{\arraystretch}{0.95}
+%% --------------------------------------------------------------------------
+
+\begin{document}
+\selectlanguage{english}
+\pagestyle{plain}
+
+%=== Header ====================================================================
+\thispagestyle{empty}
+\noindent
+\begin{minipage}[b][1.4cm]{1.0\textwidth}
+\begin{center}
+\begin{bf}
+\begin{large} Structural Bioinformatics SS 2026\end{large} \\[0.15cm]
+\begin{Large} Challenge: Protein Bindingpocket Identification\end{Large} \\[0.15cm]
+\end{bf}
+\begin{large}
+Amr Abdullah, \textless k12340330 \textgreater\\
+\end{large}
+\end{center}
+\end{minipage}
+
+\noindent \rule[0.8em]{\textwidth}{0.12mm}\\[-0.5em]
+%=====================================================================
+
+\textbf{Task \& metric.} For every residue of a protein, decide whether it is
+part of a binding pocket. The score is a flat (micro-averaged)
+Jaccard index / IoU: all \texttt{(protein, residue)} pairs of the test set are
+pooled into a single confusion matrix.
+
+\textbf{Input data \& pre-processing.} 16{,}379 training proteins -with a list
+of binding residues each- and 3{,}064 test proteins, all as PDB files. We read
+the \texttt{ATOM} records directly without external structure library. Every
+residue that has a C$\alpha$ atom becomes one example; about 11\% are binding
+(on average $\approx$50 binding residues per protein). The train/validation
+split is done \emph{by protein} (10\% held out), so no residue of a validation
+protein is ever seen during training.
+
+\textbf{Features (66 per residue).} Computed only from the C$\alpha$ coordinates
+and residue chemistry:
+\begin{itemize}
+  \item \textbf{Identity/chemistry (30):} amino-acid one-hot (21)
+  \item \textbf{Local geometry (22):} neighbor counts at 6/8/10/12/15\,\AA,
+        NN distance statistics, half-sphere exposure, local
+        anisotropy, side-chain extent, B-factor statistics, and
+        \emph{pocket concavity / open-space} scores plus depth and
+        solvent-accessibility proxies.
+  \item \textbf{Pocket chemistry (14):} mean of 7 chemical properties over the
+        C$\alpha$ neighbours within 8\,\AA{} and within 12\,\AA.
+\end{itemize}
+
+\textbf{Models:}
+\begin{enumerate}
+  \item \textbf{Gradient boosting}
+        \texttt{HistGradientBoostingClassifier} (scikit-learn) on the 66
+        features. Hyperparameters: 800 max iterations, learning rate 0.05, 63
+        max leaves, min 80 samples/leaf, L2 = 1.0, class-balanced loss, early
+        stopping on an internal 10\% split.
+  \item \textbf{Off-the-shelf tools} \emph{P2Rank} (pre-trained random forest;
+        best strategy: union of the top-2 predicted pockets) and \emph{Fpocket}. DeepSite/DeepSurf were surveyed but not practical to run at this scale.
+  \item \textbf{Equivariant GNN } A 5-layer E(n)-equivariant GNN
+        over a $k$-NN graph of C$\alpha$ atoms (hidden 96, $k$=16, 28-dim
+        chemistry-only node features, $\approx$340k parameters, BCE loss with
+        \texttt{pos\_weight}=8, Adam lr $10^{-3}$).
+\end{enumerate}
+
+\textbf{Final approach.} The gradient boosting model. At prediction time each
+residue gets a probability; the global threshold (0.725) is the one that
+maximizes the held-out flat Jaccard.
+
+\textbf{Post-processing.} Two cheap operations on the C$\alpha$ graph, tuned on
+the held-out proteins: (1) \emph{dilation}: promote an uncertain residue
+($p\!\ge\!0.6$) to positive if it lies within 6\,\AA{} of a confident one
+($p\!\ge\!0.8$), which fills pocket rims; (2) \emph{pruning}: drop connected
+components of fewer than 6 predicted residues, removing isolated false
+positives. This raises the held-out flat Jaccard from 0.3678 to 0.3706
+(improvement confirmed on 99\% of bootstrap resamples).
+
+\textbf{Results.}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Approach & Local Jaccard & Public LB \\
+\midrule
+\textbf{Gradient boosting + dilation and post-processing (final)} & \textbf{0.371} & \textbf{0.331} \\
+Gradient boosting without V1 & \textbf{0.370} & \textbf{0.326} \\
+P2Rank top-2 pockets, pre-trained          & 0.282 & 0.268 \\
+Equivariant GNN              & 0.172 & 0.163 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Code \& reproducibility.} Main file (self-contained, runs end-to-end):
+\texttt{01\_gbm\_handcrafted/binding\_site\_gbm.ipynb}; the same logic is also in
+the command-line scripts under \texttt{01\_gbm\_handcrafted/src/}. The other two
+approaches are in \texttt{02\_offshelf\_tools/} and \texttt{03\_egnn/}.
+
+\textbf{Sources} scikit-learn
+(\texttt{HistGradientBoostingClassifier}, \texttt{jaccard\_score}); P2Rank
+(Kriv\'ak \& Hoksza, \emph{J.\ Cheminform.}, 2018); Fpocket (Le Guilloux et al.,
+\emph{BMC Bioinformatics}, 2009); EGNN architecture (Satorras, Hoogeboom \&
+Welling, \emph{E(n) Equivariant Graph Neural Networks}, ICML 2021 --- our own
+implementation). All feature engineering and post-processing are original.
+
+\end{document}
